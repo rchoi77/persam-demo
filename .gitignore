@@ -1,4 +1,3 @@
-lation and distribution
 __pycache__
 _ext
 *.pyc
@@ -37,4 +36,8 @@ _darcs
 # output 
 data
 work_dirs
+
+DAVIS/
+testdata/
+outputs/
 
