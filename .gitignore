@@ -41,3 +41,4 @@ DAVIS/
 testdata/
 outputs/
 
+*.DS_Store
