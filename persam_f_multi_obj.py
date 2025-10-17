@@ -170,7 +170,7 @@ def persam_f(args, obj_name, images_path, masks_path, output_path):
         print('LR: {:.6f}, Dice_Loss: {:.4f}, Focal_Loss: {:.4f}'.format(current_lr, dice_loss.item(), focal_loss.item()))
 
     print('======> Start Testing')
-    for test_idx in tqdm(range(len(os.listdir(test_images_path)))):
+    for test_idx in tqdm(range(len([f for f in os.listdir(test_images_path) if not f.startswith('.')]))):
 
         # Load test image
         test_idx = '%02d' % test_idx
@@ -182,6 +182,7 @@ def persam_f(args, obj_name, images_path, masks_path, output_path):
         
         history_masks = []
         plt.figure(figsize=(10, 10))
+        plt.imshow(test_image_original)
         for i in tqdm(range(args.max_objects)):
             # Image feature encoding
             predictor.set_image(test_image)
@@ -265,8 +266,7 @@ def persam_f(args, obj_name, images_path, masks_path, output_path):
             show_points(topk_xy, topk_label, plt.gca())
             history_masks.append(mask_colors)
         # Save masks
-        
-        plt.imshow(test_image_original)
+
         vis_mask_output_path = os.path.join(output_path, f'vis_mask_{test_idx}_objects:{len(history_masks)}.jpg')
         with open(vis_mask_output_path, 'wb') as outfile:
             plt.savefig(outfile, format='jpg')
