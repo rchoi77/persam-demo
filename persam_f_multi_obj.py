@@ -29,7 +29,7 @@ def get_arguments():
     parser.add_argument('--train_epoch_outside', type=int, default=1)
     parser.add_argument('--train_epoch_inside', type=int, default=200)
     parser.add_argument('--log_epoch', type=int, default=200)
-    parser.add_argument('--training_percentage', type=float, default=0.5)
+    parser.add_argument('--training_size', type=int, default=1)
     
     parser.add_argument('--max_objects', type=int, default=10)
     parser.add_argument('--iou_threshold', type=float, default=0.8)
@@ -52,7 +52,7 @@ def main():
     if not os.path.exists('./outputs/'):
         os.mkdir('./outputs/')
     
-    for obj_name in os.listdir(images_path):
+    for obj_name in [f for f in os.listdir(images_path) if not f.startswith('.')]:
         persam_f(args, obj_name, images_path, masks_path, output_path)
 
 
@@ -74,12 +74,12 @@ def persam_f(args, obj_name, images_path, masks_path, output_path):
         param.requires_grad = False
     predictor = SamPredictor(sam)
 
+    target_feats_list = [] # store target features of training examples
     print("\n------------> Segment " + obj_name)
     for i in tqdm(range(args.train_epoch_outside)):
         output_path = os.path.join(output_path, obj_name)
         os.makedirs(output_path, exist_ok=True)
-        training_size = int(len(os.listdir(os.path.join(images_path, obj_name)))  * args.training_percentage)
-        for ref_idx in range(training_size):
+        for ref_idx in range(args.training_size):
             # Path preparation
             ref_image_path = os.path.join(images_path, obj_name, '{:02}.jpg'.format(ref_idx))
             ref_mask_path = os.path.join(masks_path, obj_name, '{:02}.png'.format(ref_idx))
@@ -109,6 +109,8 @@ def persam_f(args, obj_name, images_path, masks_path, output_path):
             target_feat_mean = target_feat.mean(0)
             target_feat_max = torch.max(target_feat, dim=0)[0]
             target_feat = (target_feat_max / 2 + target_feat_mean / 2).unsqueeze(0)
+            
+            target_feats_list.append(target_feat)
 
             # Cosine similarity
             h, w, C = ref_feat.shape
@@ -170,6 +172,9 @@ def persam_f(args, obj_name, images_path, masks_path, output_path):
         print('LR: {:.6f}, Dice_Loss: {:.4f}, Focal_Loss: {:.4f}'.format(current_lr, dice_loss.item(), focal_loss.item()))
 
     print('======> Start Testing')
+    # Average all reference example features to get a "general" target feature embedding
+    target_feat = torch.stack(target_feats_list).mean(0).unsqueeze(0)
+    target_feat = target_feat / target_feat.norm(dim=-1, keepdim=True)
     for test_idx in tqdm(range(len([f for f in os.listdir(test_images_path) if not f.startswith('.')]))):
 
         # Load test image
